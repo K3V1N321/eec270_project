@@ -48,6 +48,10 @@ REG scratch_reg0;
 REG scratch_reg1;
 std::ofstream outputFile;
 
+std::vector<ADDRINT> addresses;
+std::vector<UINT64> tscs;
+std::vector<BOOL> isReads;
+
 /*
  *
  *
@@ -656,8 +660,11 @@ VOID ThreadFini(THREADID tid, const CONTEXT* ctxt, INT32 code, VOID* v)
     PIN_SetThreadData(mlog_key, 0, tid);
 }
 
-void MemoryAccessInfo(ADDRINT address, ADDRINT time, BOOL isRead)
+void MemoryAccessInfo(ADDRINT address, UINT64 cycle, BOOL isRead)
 {
+    // addresses.push_back(address);
+    // tscs.push_back(cycle);
+    // isReads.push_back(isRead);
     std::string type;
     if (isRead) {
         type = "READ";
@@ -665,46 +672,72 @@ void MemoryAccessInfo(ADDRINT address, ADDRINT time, BOOL isRead)
     else {
         type = "WRITE";
     }
-    outputFile << std::showbase << std::hex << address << " " << type << " " << std::dec << time << std::endl;
+    outputFile << std::showbase << std::hex << address << " " << type << " " << std::dec << cycle << std::endl;
 }
 
 void InstrumentBBL2(BBL bbl)
 {
-    std::string type;
     for (INS ins = BBL_InsHead(bbl); INS_Valid(ins); ins = INS_Next(ins))
     {
         // Log every memory references of the instruction
         if (INS_IsMemoryRead(ins) && INS_IsStandardMemop(ins))
         {
-            INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)MemoryAccessInfo, 
+            INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)MemoryAccessInfo,
                            IARG_MEMORYREAD_EA, IARG_TSC, IARG_BOOL, TRUE, IARG_END);
         }
         if (INS_IsMemoryWrite(ins) && INS_IsStandardMemop(ins))
         {
-            INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)MemoryAccessInfo, 
+            INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)MemoryAccessInfo,
                            IARG_MEMORYWRITE_EA, IARG_TSC, IARG_BOOL, FALSE, IARG_END);
         }
         if (INS_HasMemoryRead2(ins) && INS_IsStandardMemop(ins))
         {
-            INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)MemoryAccessInfo, 
-                           IARG_INST_PTR, IARG_MEMORYREAD2_EA, IARG_TSC, IARG_BOOL, TRUE, IARG_END);
+            INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)MemoryAccessInfo,
+                           IARG_MEMORYREAD_EA, IARG_TSC, IARG_BOOL, TRUE, IARG_END);
+
+            INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)MemoryAccessInfo,
+                           IARG_MEMORYREAD2_EA, IARG_TSC, IARG_BOOL, TRUE, IARG_END);
         }
     }
 }
 
-void InstrumentFunction(TRACE trace, void*) {
-    for (BBL bbl = TRACE_BblHead(trace); BBL_Valid(bbl); bbl = BBL_Next(bbl))
+void InstrumentFunction(INS ins, void*) {
+    // Log every memory references of the instruction
+    if (INS_IsMemoryRead(ins) && INS_IsStandardMemop(ins))
     {
-        InstrumentBBL2(bbl);
+        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)MemoryAccessInfo,
+                       IARG_MEMORYREAD_EA, IARG_TSC, IARG_BOOL, TRUE, IARG_END);
     }
+    if (INS_IsMemoryWrite(ins) && INS_IsStandardMemop(ins))
+    {
+        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)MemoryAccessInfo,
+                       IARG_MEMORYWRITE_EA, IARG_TSC, IARG_BOOL, FALSE, IARG_END);
+    }
+    if (INS_HasMemoryRead2(ins) && INS_IsStandardMemop(ins))
+    {
+        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)MemoryAccessInfo,
+                       IARG_MEMORYREAD_EA, IARG_TSC, IARG_BOOL, TRUE, IARG_END);
+
+        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)MemoryAccessInfo,
+                       IARG_MEMORYREAD2_EA, IARG_TSC, IARG_BOOL, TRUE, IARG_END);
+    }
+    // for (BBL bbl = TRACE_BblHead(trace); BBL_Valid(bbl); bbl = BBL_Next(bbl))
+    // {
+    //     InstrumentBBL2(bbl);
+    // }
+}
+
+void FinalFunction(INT32 code, VOID* v) {
+    outputFile.close();
 }
 
 
 int main(int argc, char* argv[])
 {
+    
+    PIN_Init(argc, argv);
     const string filename = KnobOutputFile.Value();
     outputFile.open(filename.c_str());
-    PIN_Init(argc, argv);
 
     // mlog_key     = PIN_CreateThreadDataKey(0);
     // scratch_reg0 = PIN_ClaimToolRegister();
@@ -717,11 +750,10 @@ int main(int argc, char* argv[])
     //     return 1;
     // }
 
-    TRACE_AddInstrumentFunction(InstrumentFunction, 0);
-
+    INS_AddInstrumentFunction(InstrumentFunction, 0);
+    PIN_AddFiniFunction(FinalFunction, 0);
 
     PIN_StartProgram();
-    outputFile.close();
 
     return 0;
 }
