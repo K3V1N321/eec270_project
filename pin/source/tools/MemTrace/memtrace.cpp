@@ -46,11 +46,13 @@ using std::vector;
 TLS_KEY mlog_key;
 REG scratch_reg0;
 REG scratch_reg1;
-std::ofstream outputFile;
+// std::ofstream outputFile;
 
-std::vector<ADDRINT> addresses;
-std::vector<UINT64> tscs;
-std::vector<BOOL> isReads;
+// std::vector<ADDRINT> addresses;
+// std::vector<UINT64> tscs;
+// std::vector<BOOL> isReads;
+TLS_KEY key;
+
 
 /*
  *
@@ -167,6 +169,38 @@ class TRACEINFO
         ADDRINT _address;
         ADDRINT _time;
         std::string _type;
+};
+
+class TRACEINFO2
+{
+    public:
+        TRACEINFO2(ADDRINT address, UINT64 cycle, BOOL isRead) {
+            _address = address;
+            _cycle = cycle;
+            _isRead = isRead;
+        }
+
+        ADDRINT get_address() {
+            return _address;
+        }
+
+        UINT64 get_cycle() {
+            return _cycle;
+        }
+
+        std::string get_type() {
+            if (_isRead) {
+                return "READ";
+            }
+            else {
+                return "WRITE";
+            }
+        }
+
+    private:
+        ADDRINT _address;
+        UINT64 _cycle;
+        BOOL _isRead;
 };
 
 /*
@@ -660,45 +694,27 @@ VOID ThreadFini(THREADID tid, const CONTEXT* ctxt, INT32 code, VOID* v)
     PIN_SetThreadData(mlog_key, 0, tid);
 }
 
-void MemoryAccessInfo(ADDRINT address, UINT64 cycle, BOOL isRead)
-{
-    // addresses.push_back(address);
-    // tscs.push_back(cycle);
-    // isReads.push_back(isRead);
-    std::string type;
-    if (isRead) {
-        type = "READ";
-    }
-    else {
-        type = "WRITE";
-    }
-    outputFile << std::showbase << std::hex << address << " " << type << " " << std::dec << cycle << std::endl;
-}
+// void MemoryAccessInfo(THREADID tid, ADDRINT address, UINT64 cycle, BOOL isRead)
+// {
+//     addresses.push_back(address);
+//     tscs.push_back(cycle);
+//     isReads.push_back(isRead);
 
-void InstrumentBBL2(BBL bbl)
-{
-    for (INS ins = BBL_InsHead(bbl); INS_Valid(ins); ins = INS_Next(ins))
-    {
-        // Log every memory references of the instruction
-        if (INS_IsMemoryRead(ins) && INS_IsStandardMemop(ins))
-        {
-            INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)MemoryAccessInfo,
-                           IARG_MEMORYREAD_EA, IARG_TSC, IARG_BOOL, TRUE, IARG_END);
-        }
-        if (INS_IsMemoryWrite(ins) && INS_IsStandardMemop(ins))
-        {
-            INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)MemoryAccessInfo,
-                           IARG_MEMORYWRITE_EA, IARG_TSC, IARG_BOOL, FALSE, IARG_END);
-        }
-        if (INS_HasMemoryRead2(ins) && INS_IsStandardMemop(ins))
-        {
-            INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)MemoryAccessInfo,
-                           IARG_MEMORYREAD_EA, IARG_TSC, IARG_BOOL, TRUE, IARG_END);
+//     std::string type;
+//     if (isRead) {
+//         type = "READ";
+//     }
+//     else {
+//         type = "WRITE";
+//     }
+//     outputFile << std::showbase << std::hex << address << " " << type << " " << std::dec << cycle << std::endl;
+// }
 
-            INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)MemoryAccessInfo,
-                           IARG_MEMORYREAD2_EA, IARG_TSC, IARG_BOOL, TRUE, IARG_END);
-        }
-    }
+void MemoryAccessInfo(THREADID tid, ADDRINT address, UINT64 cycle, BOOL isRead)
+{ 
+    std::vector<TRACEINFO2>* data = static_cast<std::vector<TRACEINFO2>*>(PIN_GetThreadData(key, tid));
+    TRACEINFO2 info = TRACEINFO2(address, cycle, isRead);
+    data->push_back(info);
 }
 
 void InstrumentFunction(INS ins, void*) {
@@ -706,28 +722,47 @@ void InstrumentFunction(INS ins, void*) {
     if (INS_IsMemoryRead(ins) && INS_IsStandardMemop(ins))
     {
         INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)MemoryAccessInfo,
-                       IARG_MEMORYREAD_EA, IARG_TSC, IARG_BOOL, TRUE, IARG_END);
+                       IARG_THREAD_ID, IARG_MEMORYREAD_EA, IARG_TSC, IARG_BOOL, TRUE, IARG_END);
     }
     if (INS_IsMemoryWrite(ins) && INS_IsStandardMemop(ins))
     {
         INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)MemoryAccessInfo,
-                       IARG_MEMORYWRITE_EA, IARG_TSC, IARG_BOOL, FALSE, IARG_END);
+                       IARG_THREAD_ID, IARG_MEMORYWRITE_EA, IARG_TSC, IARG_BOOL, FALSE, IARG_END);
     }
     if (INS_HasMemoryRead2(ins) && INS_IsStandardMemop(ins))
     {
         INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)MemoryAccessInfo,
-                       IARG_MEMORYREAD_EA, IARG_TSC, IARG_BOOL, TRUE, IARG_END);
-
-        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)MemoryAccessInfo,
-                       IARG_MEMORYREAD2_EA, IARG_TSC, IARG_BOOL, TRUE, IARG_END);
+                       IARG_THREAD_ID, IARG_MEMORYREAD2_EA, IARG_TSC, IARG_BOOL, TRUE, IARG_END);
     }
-    // for (BBL bbl = TRACE_BblHead(trace); BBL_Valid(bbl); bbl = BBL_Next(bbl))
-    // {
-    //     InstrumentBBL2(bbl);
-    // }
 }
 
-void FinalFunction(INT32 code, VOID* v) {
+VOID ThreadStart2(THREADID tid, CONTEXT* ctxt, INT32 flags, VOID* v)
+{
+    std::vector<TRACEINFO2>* data = new std::vector<TRACEINFO2>();
+    std::cout << "START " << "ID: " << tid << " Size: " << data->size() << std::endl;
+    PIN_SetThreadData(key, static_cast<void*>(data), tid);
+}
+
+VOID ThreadFini2(THREADID tid, const CONTEXT* ctxt, INT32 code, VOID* v)
+{
+    std::ofstream outputFile;
+    const string filename = KnobOutputFile.Value() + "." + std::to_string(tid);
+    std::vector<TRACEINFO2>* data = static_cast<std::vector<TRACEINFO2>*>(PIN_GetThreadData(key, tid));
+    std::cout << "END " << "ID: " << tid << " Size: " << data->size() << " Filename: " << filename << std::endl;
+
+    outputFile.open(filename.c_str());
+    for (size_t i = 0; i < data->size(); i++) {
+        TRACEINFO2 info = (*data)[i];
+        ADDRINT address = info.get_address();
+        UINT64 cycle = info.get_cycle();
+        std::string type = info.get_type();
+        outputFile << std::showbase << std::hex << address << " " << type << " " << std::dec << cycle << std::endl;
+    }
+    if (data) {
+        delete data;
+        PIN_SetThreadData(key, nullptr, tid);
+    }
+
     outputFile.close();
 }
 
@@ -736,22 +771,11 @@ int main(int argc, char* argv[])
 {
     
     PIN_Init(argc, argv);
-    const string filename = KnobOutputFile.Value();
-    outputFile.open(filename.c_str());
 
-    // mlog_key     = PIN_CreateThreadDataKey(0);
-    // scratch_reg0 = PIN_ClaimToolRegister();
-    // scratch_reg1 = PIN_ClaimToolRegister();
-
-    // if (!(REG_valid(scratch_reg0) && REG_valid(scratch_reg1)))
-    // {
-    //     std::cerr << "Cannot allocate a scratch register.\n";
-    //     std::cerr << std::flush;
-    //     return 1;
-    // }
-
+    key = PIN_CreateThreadDataKey(0);
     INS_AddInstrumentFunction(InstrumentFunction, 0);
-    PIN_AddFiniFunction(FinalFunction, 0);
+    PIN_AddThreadStartFunction(ThreadStart2, 0);
+    PIN_AddThreadFiniFunction(ThreadFini2, 0);
 
     PIN_StartProgram();
 
