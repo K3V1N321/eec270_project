@@ -371,8 +371,8 @@ class BuilderBase {
       std::cout << "Cannot relabel directed graph" << std::endl;
       std::exit(-11);
     }
-    Timer t;
-    t.Start();
+    // Timer t;
+    // t.Start();
     typedef std::pair<int64_t, NodeID_> degree_node_p;
     pvector<degree_node_p> degree_id_pairs(g.num_nodes());
     #pragma omp parallel for
@@ -396,8 +396,8 @@ class BuilderBase {
         neighs[offsets[new_ids[u]]++] = new_ids[v];
       std::sort(index[new_ids[u]], index[new_ids[u]+1]);
     }
-    t.Stop();
-    PrintTime("Relabel", t.Seconds());
+    // t.Stop();
+    // PrintTime("Relabel", t.Seconds());
     return CSRGraph<NodeID_, DestID_, invert>(g.num_nodes(), index, neighs);
   }
 };

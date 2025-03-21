@@ -57,7 +57,7 @@ bool start = false;
 // size_t index = 0;
 
 
-uint64_t counts = 0;
+// uint64_t counts = 0;
 
 /*
  *
@@ -187,8 +187,6 @@ void InstrumentFunction(INS ins, VOID* v) {
 
 void FinalFunction(INT32 code, VOID* v) {
     logger.close();
-    // std::cout <<"COUNT: " << counts << std::endl;
-    // std::cout << "SIZE: " << traces.size() << std::endl;
 }
 
 VOID StartTracking() {
@@ -199,30 +197,23 @@ VOID StopTracking() {
     start = false;
 }
 
-VOID LoadImage(IMG image, VOID *v) {
-    // RTN routine = RTN_FindByName(image, "_Z15BenchmarkKernelI8CSRGraphIiiLb1EEZ4mainEUlRKS1_E_PFvS3_RK7pvectorIiEEZ4mainEUlS3_S8_E0_EvRK5CLAppRKT_T0_T1_T2_");
-    
-    // // bfs
+VOID LoadImage(IMG image, VOID *v) {    
+    // bfs
     RTN routine = RTN_FindByName(image, "_Z5DOBFSRK8CSRGraphIiiLb1EEibii");
-    // RTN routine = RTN_FindByName(image, "main");
 
-    // // sssp
+    // sssp
     // RTN routine = RTN_FindByName(image, "_Z9DeltaStepRK8CSRGraphIi10NodeWeightIiiELb1EEiib");
 
     // bc
     // RTN routine = RTN_FindByName(image, "_Z7BrandesRK8CSRGraphIiiLb1EER12SourcePickerIS0_Eib");
 
-    // RTN routine = RTN_FindByName(image, "main");
+    // cc
+    // RTN routine = RTN_FindByName(image, "_Z8AfforestRK8CSRGraphIiiLb1EEbi");
+    // pr
+    // RTN routine = RTN_FindByName(image, "_Z14PageRankPullGSRK8CSRGraphIiiLb1EEidb");
 
-    // std::string imgName = IMG_Name(image);
-    // std::cout << "Checking image: " << imgName << std::endl;
-    // if (imgName.find("bfs") != std::string::npos) {
-    //     for (SEC sec = IMG_SecHead(image); SEC_Valid(sec); sec = SEC_Next(sec)) {
-    //         for (RTN rtn = SEC_RtnHead(sec); RTN_Valid(rtn); rtn = RTN_Next(rtn)) {
-    //             std::cout << "  Function: " << RTN_Name(rtn) << std::endl;
-    //         }
-    //     }
-    // }
+    // tc
+    // RTN routine = RTN_FindByName(image, "_Z6HybridRK8CSRGraphIiiLb1EE");
 
     if (RTN_Valid(routine)) {
         // std::cout << "Benchmark found" << std::endl;

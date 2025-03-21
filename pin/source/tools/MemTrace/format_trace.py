@@ -3,8 +3,8 @@ BATCH_SIZE = 10000000
 
 
 if __name__ == "__main__":
-    inputFileName = "graph.trace"
-    outputFileName = "graph_bfs2.trace"
+    inputFileName = "bfs_degree2.trace"
+    outputFileName = "bfs_degree2_formatted.trace"
     
     lines = []
     with open(inputFileName, "r") as inputFile:
@@ -83,44 +83,3 @@ if __name__ == "__main__":
                 print("Last Element:", lineNumber, lines[-1])
             else:
                 print("Last Element:", lineNumber, prevLineType, prevLineCycle)
-
-    # inputFileName = "graph_bfs_old.trace"
-    # with open(inputFileName, "r") as inputFile:
-    #     lineNumber = 0
-    #     reads = 0
-    #     writes = 0
-    #     readLatencies = []
-    #     writeLatencies = []
-    #     averageReadLatency = None
-    #     averageWriteLatency = None
-    #     start = None
-    #     prevLineType = None
-    #     prevLineCycle = None
-    #     for line in inputFile:
-    #         elements = line.strip().split(" ")
-    #         curLineCycle = int(elements[2])
-    #         if lineNumber > 0:
-    #             latency = curLineCycle - prevLineCycle
-    #             if prevLineType == "WRITE":
-    #                 writeLatencies.append(latency)
-    #             elif prevLineType == "READ":
-    #                 readLatencies.append(latency)
-            
-    #         prevLineType = elements[1]
-    #         prevLineCycle = curLineCycle
-
-    #         lineNumber += 1
-            
-    #         if lineNumber == 100000:
-    #             print(lineNumber)
-    #             print(elements)
-    #             print("READ:")
-    #             averageReadLatency = np.round(np.mean(readLatencies))
-    #             print(averageReadLatency)
-    #             print()
-                
-    #             print("WRITE:")
-    #             averageWriteLatency = np.round(np.mean(writeLatencies))
-    #             print(averageWriteLatency)
-                
-    #             break
