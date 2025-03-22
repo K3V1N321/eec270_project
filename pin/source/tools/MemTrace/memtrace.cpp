@@ -53,12 +53,6 @@ const char READ = 'R';
 const char WRITE = 'W';
 bool start = false;
 
-// std::vector<TRACE_INFO> traces(10000000);
-// size_t index = 0;
-
-
-// uint64_t counts = 0;
-
 /*
  *
  *
@@ -216,7 +210,6 @@ VOID LoadImage(IMG image, VOID *v) {
     // RTN routine = RTN_FindByName(image, "_Z6HybridRK8CSRGraphIiiLb1EE");
 
     if (RTN_Valid(routine)) {
-        // std::cout << "Benchmark found" << std::endl;
         RTN_Open(routine);
         RTN_InsertCall(routine, IPOINT_BEFORE, (AFUNPTR)StartTracking, IARG_END);
         RTN_InsertCall(routine, IPOINT_AFTER, (AFUNPTR)StopTracking, IARG_END);
