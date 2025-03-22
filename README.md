@@ -28,9 +28,13 @@ Various metrics will be given in dramsim3.txt. For our research, we focused on t
 
 ## GAPBS
 The BFS algorithm given in GAPBS was used to generate trace files to be used as workloads for our research. The source code was modified slighlty to remove extra instructions when running BFS, such as logging instructions.
+To prevent issues that would arise from tracking the executables when ran in parallel, the programs were compiled with make SERIAL=1 to make them run serially.
 
 ## PIN
 Using the PIN API, the source code of the MemTrace tool was modified to generate a trace file of specifically the portion of the BFS program, from GAPBS, that performed BFS. For each instruction, the memory address accessed, memory access type, and cycle the instruction was executed were collected.  
+
+In `memtrace.cpp`, the function `LoadImage()` is used to ensure that only the instructions executed for the function that performs BFS was tracked. The line `RTN routine = RTN_FindByName(image, "_Z5DOBFSRK8CSRGraphIiiLb1EEibii");` is used to find the BFS function in the given executable to run. Then once the BFS function was encountered, a global variable was set to make PIN start tracking, and once the function finished, the global variable was set to make PIN stop tracking.  
+With the BFS executable, the function that performed BFS was `DOBFS()`. In the gapbs directory, `nm -C bfs | grep DOBFS` was ran to get the memory address of where the function is located. Then `nm bfs | grep BFS` was ran to get the encoded name of the function, `_Z5DOBFSRK8CSRGraphIiiLb1EEibii`, checking that it is at the correct memory address. The encoded name might have the function name spread apart, which is why we first found the function's memory address and then used `grep` to search for a portion of the function name when finding the encoded name.
 
 When in the MemTrace directory in pin, a trace file can be generated with a command like the following:  
 ```
